@@ -1,10 +1,13 @@
 #!/usr/bin/env node
 
 var validUrl = require('valid-url');
-var request = require('sync-request');
 const getHrefs = require('get-hrefs');
 const fs = require('fs');
-const util = require('util');
+var util = require('util');
+var url = require('url');
+// const request = require('request');
+const { promisify } = require('util');
+var request = promisify(require("request"));
 
 if(process.argv.length < 3 || ! validUrl.isUri(process.argv[2])) {
   console.log("Usage: ./map.js <site> <target_file>");
@@ -12,26 +15,79 @@ if(process.argv.length < 3 || ! validUrl.isUri(process.argv[2])) {
 }
 
 var site = process.argv[2];
-var jsonSiteMap = extractSiteMap(site);
-if(process.argv.length >= 4) {
-  fs.writeFile(process.argv[3],  util.inspect(jsonSiteMap), 'utf8', function (err) {
-    if (err) {
-      return console.log(err);
+const domain = new url.URL(site);
+var visited = {};
+var siteMap = {site: domain.origin, tree: {'': {}}, external: {}};
+var totalURLs = 0;
+var processedURLs = 0;
+processURL('/');  //Start at the root
+
+function processURL(path){
+  if(! visited[path]) {
+    totalURLs ++;
+  } else {
+    traversePath(path);
+    return;
+  }
+  traversePath(path);
+  console.log(path)
+
+  request(domain.origin+path).then(function(response){
+    visited[path] = true;
+    var hrefs = getHrefs(response.body);
+    hrefs.forEach(function(href){
+      if(href.startsWith("/"))  href = domain.origin + href;
+      if(href.startsWith("#"))  href = domain.origin + path + href;
+
+      var curr = new url.URL(href);
+      if(curr.hostname != domain.hostname) {
+        // External link
+        if(!siteMap.external[href]){
+          siteMap.external[href] = 0;
+        }
+        siteMap.external[href] ++;
+        return;
+      }
+
+      processURL(curr.pathname);
+    });
+  }).catch(function(error){
+    console.log(error);
+  }).then(function(){
+    processedURLs ++;
+    if(processedURLs == totalURLs)  finished();
+  });
+
+}
+
+function traversePath(path) {
+  var bits = path.split('/');
+  var curr = siteMap.tree;
+  if(curr.length <= 0) return;
+  for(var i=0; i< bits.length; i++) {
+    if(!curr[bits[i]]){
+      curr[bits[i]] = {};
     }
 
-    console.log("The file was saved!");
-  });
-} else {
-  console.log(output);
+    curr = curr[bits[i]];
+  }
 }
 
-function extractSiteMap(site) {
-  var output = {};
-  var visited = {};
+function finished() {
+  // Handle the output
+  if(process.argv.length >= 4) {
+    fs.writeFile(process.argv[3],  JSON.stringify(siteMap), 'utf8', function (err) {
+      if (err) {
+        return console.log(err);
+      }
 
-  output = processHref(site, visited, site);
-  return output;
+      console.log("The file was saved!");
+    });
+  } else {
+    console.log(siteMap);
+  }
 }
+
 
 function processHref(site, visited, domain) {
   if(! site.startsWith("http")) return "Not a page";
@@ -55,9 +111,4 @@ function processHref(site, visited, domain) {
     // console.log(output);
   }
   return output;
-}
-
-function removeTrailinSlash(site)
-{
-    return site.replace(/\/$/, "");
 }
