@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 
 var validUrl = require('valid-url');
-const getHrefs = require('get-hrefs');
 const fs = require('fs');
 var util = require('util');
 var url = require('url');
 const { promisify } = require('util');
 var request = promisify(require("request"));
+var cheerio = require('cheerio');
 
 if(process.argv.length < 3 || ! validUrl.isUri(process.argv[2])) {
   console.log("Usage: ./map.js <site> <target_file>");
@@ -57,6 +57,16 @@ function processURL(path){
 
       processURL(curr.pathname);
     });
+    var statics = getStatics(response.body);
+    statics.forEach(function(st){
+      if(! node.statics) {
+        node.statics = [st];
+      } else {
+        node.statics.push(st);
+      }
+      visited[st] = true;
+      return;
+    });
   }).catch(function(error){
     console.log(error);
     // delete visited[path];
@@ -66,6 +76,28 @@ function processURL(path){
     if(processedURLs == totalURLs)  finished();
   });
 
+}
+
+function getHrefs(body) {
+  $ = cheerio.load(body);
+  var output = [];
+  var links = $('a'); //jquery get all hyperlinks
+  $(links).each(function(i, link){
+    if($(link).attr('href')) output.push($(link).attr('href'));
+  });
+
+  return output;
+}
+
+function getStatics(body) {
+  $ = cheerio.load(body);
+  var output = [];
+  var statics = $('[src]');
+  $(statics).each(function(i, st){
+    if($(statics).attr('src')) output.push($(statics).attr('src'));
+  });
+
+  return output;
 }
 
 function traversePath(path) {

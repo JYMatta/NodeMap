@@ -27,16 +27,16 @@ from withing the project directory
 
 **_[site]_ (required)**: Replace with the URL you want to generate the sitemap for.
 
-_[targetfile]_ **(optional)**: Replace with filename, when provided, the tool with write the final JSON output to that file.
+_[targetfile]_ **(optional)**: Replace with filename, when provided, the tool with write the final JSON output to that file. If not provided, the JSON output will be logged to console.
 
 ## Reasoning
 I decided to implement the task described [here](https://github.com/buildit/org-design/blob/master/Recruitment/Exercises/engineering_lead.md), using Node.JS since I am applying to a Node.JS position, and the node engine is really optimized for asynchronous processing.  
 I knew that a crawler would initiate a lot of web requests and there is no sense in performing them serially since they aren't dependent, which made was in favor of using Node.JS and it's native support for async functions.
 
 #### Trade-offs
-* ##### Using the [_get-hrefs_](https://www.npmjs.com/package/get-hrefs) instead of manually writing it.
-  It makes more sense to use a package that does the work instead of manually re-inventing the wheel and losing time debugging it.  
-  Plus it is a straight forward RegEx match, and I'm confident that given the time I can implement it.
+* ##### Using [cheerio](https://npmjs.org/package/cheerio) instead of [_get-hrefs_](https://www.npmjs.com/package/get-hrefs) instead of manually writing it.
+  At first, I used the get-hrefs package so I wouldn't have to reinvent the wheel, but after revisiting the requirements, the package didn't return the images and static file links.  
+  So I had to query those myself from the HTML body. I decided to go with Cheerio since the package is relatively fast when it comes to queries to links and as well item with _src_ attribute.
 
 ## Improvements
 * Using command line modules to display number of links parsed and the number of links detected as progress instead of just logging the links to indicate work.
