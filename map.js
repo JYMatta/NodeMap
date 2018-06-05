@@ -3,6 +3,8 @@
 var validUrl = require('valid-url');
 var request = require('sync-request');
 const getHrefs = require('get-hrefs');
+const fs = require('fs');
+const util = require('util');
 
 if(process.argv.length < 3 || ! validUrl.isUri(process.argv[2])) {
   console.log("Usage: ./map.js <site> <target_file>");
@@ -11,13 +13,24 @@ if(process.argv.length < 3 || ! validUrl.isUri(process.argv[2])) {
 
 var site = process.argv[2];
 var jsonSiteMap = extractSiteMap(site);
+if(process.argv.length >= 4) {
+  fs.writeFile(process.argv[3],  util.inspect(jsonSiteMap), 'utf8', function (err) {
+    if (err) {
+      return console.log(err);
+    }
+
+    console.log("The file was saved!");
+  });
+} else {
+  console.log(output);
+}
 
 function extractSiteMap(site) {
   var output = {};
   var visited = {};
 
   output = processHref(site, visited, site);
-  console.log(output);
+  return output;
 }
 
 function processHref(site, visited, domain) {
