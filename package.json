@@ -25,9 +25,10 @@
     "url": "https://github.com/JYMatta/NodeMap/issues"
   },
   "homepage": "https://github.com/JYMatta/NodeMap#readme",
+  "engines" : { "node" : ">=8" },
+  "engineStrict" : true,
   "dependencies": {
     "get-hrefs": "^2.0.0",
-    "linkscrape": "^1.0.0",
     "valid-url": "^1.0.9"
   }
 }
