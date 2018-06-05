@@ -5,7 +5,6 @@ const getHrefs = require('get-hrefs');
 const fs = require('fs');
 var util = require('util');
 var url = require('url');
-// const request = require('request');
 const { promisify } = require('util');
 var request = promisify(require("request"));
 
@@ -26,13 +25,13 @@ function processURL(path){
   if(! visited[path]) {
     totalURLs ++;
   } else {
-    traversePath(path);
+    // traversePath(path);
     return;
   }
-  traversePath(path);
   console.log(path)
 
   request(domain.origin+path).then(function(response){
+    var node = traversePath(path);
     visited[path] = true;
     var hrefs = getHrefs(response.body);
     hrefs.forEach(function(href){
@@ -46,6 +45,13 @@ function processURL(path){
           siteMap.external[href] = 0;
         }
         siteMap.external[href] ++;
+
+        if(! node.external) {
+          node.external = [href];
+        } else {
+          node.external.push(href);
+        }
+        visited[href] = true;
         return;
       }
 
@@ -53,6 +59,8 @@ function processURL(path){
     });
   }).catch(function(error){
     console.log(error);
+    // delete visited[path];
+    // processedURLs--;
   }).then(function(){
     processedURLs ++;
     if(processedURLs == totalURLs)  finished();
@@ -63,7 +71,8 @@ function processURL(path){
 function traversePath(path) {
   var bits = path.split('/');
   var curr = siteMap.tree;
-  if(curr.length <= 0) return;
+  if(curr.length <= 0) return curr;
+
   for(var i=0; i< bits.length; i++) {
     if(!curr[bits[i]]){
       curr[bits[i]] = {};
@@ -71,12 +80,14 @@ function traversePath(path) {
 
     curr = curr[bits[i]];
   }
+  return curr;
 }
 
 function finished() {
   // Handle the output
+  var output = JSON.stringify(siteMap);
   if(process.argv.length >= 4) {
-    fs.writeFile(process.argv[3],  JSON.stringify(siteMap), 'utf8', function (err) {
+    fs.writeFile(process.argv[3],  output, 'utf8', function (err) {
       if (err) {
         return console.log(err);
       }
@@ -84,31 +95,6 @@ function finished() {
       console.log("The file was saved!");
     });
   } else {
-    console.log(siteMap);
+    console.log(output);
   }
-}
-
-
-function processHref(site, visited, domain) {
-  if(! site.startsWith("http")) return "Not a page";
-  if(! site.startsWith(domain)) return "External";
-  if(visited[site]) return visited[site];
-
-  // console.log("Got for <%s>", site);
-  body = request("GET", site).getBody().toString('utf8');
-  var hrefs = getHrefs(body);
-  // console.log(hrefs);
-
-  output = {};
-  visited[site] = output;
-  for(var i =0; i < hrefs.length; i ++){
-    href = hrefs[i];
-    if(href.startsWith("/"))  href = site+href;   // Relative link, add the domain ahead of it
-
-    var subtree = processHref(href, visited, domain);
-    // console.log(subtree);
-    if(subtree) output[href] = subtree;
-    // console.log(output);
-  }
-  return output;
 }
