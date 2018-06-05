@@ -13,41 +13,38 @@ var site = process.argv[2];
 var jsonSiteMap = extractSiteMap(site);
 
 function extractSiteMap(site) {
-  var processQueue = [site];
-  var visited = {};
   var output = {};
-  output[site] = processNextQueueItem(processQueue, visited, site);
+  var visited = {};
+
+  output = processHref(site, visited, site);
   console.log(output);
 }
 
-function processNextQueueItem(processQueue, visited, domain) {
+function processHref(site, visited, domain) {
+  if(! site.startsWith("http")) return "Not a page";
+  if(! site.startsWith(domain)) return "External";
+  if(visited[site]) return visited[site];
+
+  // console.log("Got for <%s>", site);
+  body = request("GET", site).getBody().toString('utf8');
+  var hrefs = getHrefs(body);
+  // console.log(hrefs);
+
   output = {};
-  while (processQueue.length > 0) {
-    site = processQueue.shift();
-    if(! site.startsWith(domain) || visited[site]) {
-      // console.log("%s not in %s", site, domain);
-      continue;
-    }
+  visited[site] = output;
+  for(var i =0; i < hrefs.length; i ++){
+    href = hrefs[i];
+    if(href.startsWith("/"))  href = site+href;   // Relative link, add the domain ahead of it
 
-    if(! site && queue.length == 0){
-      // reached the end
-      return output;
-    }
-
-    // console.log("Got for <%s>", site);
-    body = request("GET", site).getBody().toString('utf8');
-    visited[site] = true;
-    var hrefs = getHrefs(body);
-    // console.log(hrefs);
-
-    hrefs.forEach(function(href){
-      output[site] = {href: null};
-      if(href.startsWith("/"))  href = domain+href;
-      if(!visited[href] && href.startsWith("http")){
-        processQueue.push(href);
-      }
-    });
-    // console.log(processQueue);
+    var subtree = processHref(href, visited, domain);
+    // console.log(subtree);
+    if(subtree) output[href] = subtree;
+    // console.log(output);
   }
   return output;
+}
+
+function removeTrailinSlash(site)
+{
+    return site.replace(/\/$/, "");
 }
