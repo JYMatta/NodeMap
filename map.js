@@ -30,9 +30,9 @@ function processURL(path){
   }
   console.log(path)
 
+  visited[path] = true;
   request(domain.origin+path).then(function(response){
     var node = traversePath(path);
-    visited[path] = true;
     var hrefs = getHrefs(response.body);
     hrefs.forEach(function(href){
       if(href.startsWith("/"))  href = domain.origin + href;
